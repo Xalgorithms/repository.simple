@@ -9,3 +9,10 @@ class Rule
   field :version, type: Integer
   field :content, type: Hash
 end
+
+class Registry
+  include Mongoid::Document
+
+  field :url, type: String
+  field :public_id, type: String
+end
