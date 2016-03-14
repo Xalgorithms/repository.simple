@@ -1,5 +1,7 @@
 require 'grape'
 
+require_relative './models'
+
 class Rules < Grape::API
   format :json
   
@@ -8,7 +10,10 @@ class Rules < Grape::API
       resource :versions do
         route_param :ver do
           get do
-            { actions: [], filters: [] }
+            args = { name: params.name, version: params.ver.to_i }
+            rule = Rule.where(args).first
+            error!(:not_found, 404) unless rule
+            rule.content
           end
         end
       end
