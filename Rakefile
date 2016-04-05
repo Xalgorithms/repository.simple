@@ -1,22 +1,22 @@
 require_relative './registry_client'
 require_relative './models'
 
-task :register do
-  rcl = RegistryClient.new
+task :register, [:url, :local_url] do |t, args|
+  rcl = RegistryClient.new(args.url)
 
-  puts "# looking up registry with url=#{rcl.registry_url}"
-  m = Registry.where(url: rcl.registry_url).first
+  puts "# looking up registry with url=#{args.url}"
+  m = Registry.where(url: args.url).first
   
   if m
     puts "# exists (public_id=#{m.public_id})"
   else
     puts "# storing new registry"
-    m = Registry.create(url: rcl.registry_url)
+    m = Registry.create(url: args.url)
   end
 
   unless m.public_id
     puts "# registring with the registry"
-    rcl.register(m.url) do |public_id|
+    rcl.register(args.local_url) do |public_id|
       puts "# saving public_id=#{public_id}"
       m.update_attributes(public_id: public_id)
     end
@@ -24,14 +24,14 @@ task :register do
 end
 
 task :registries do
-  Registry.all.each do |registry|
-    puts "# public_id=#{registry.public_id}; url=#{registry.url}"
+  Registry.all.each_with_index do |registry, i|
+    puts "# [#{i}] public_id=#{registry.public_id}; url=#{registry.url}"
   end
 end
 
-def with_registry(public_id)
-  puts "# locating registry details (public_id=#{public_id})"
-  rm = Registry.where(public_id: public_id).first
+def with_registry(i)
+  puts "# locating registry details (index=#{i})"
+  rm = Registry.all[i]
   if rm
     yield(rm)
   else
@@ -45,8 +45,8 @@ def with_rule_files
   end
 end
 
-task :populate, [:public_id] do |t, args|
-  with_registry(args.public_id) do |m|
+task :populate, [:registry] do |t, args|
+  with_registry(args.registry.to_i) do |m|
     changes = []
     with_rule_files do |name, ver, content|
       puts "# processing (name=#{name}; ver=#{ver})"
@@ -66,7 +66,7 @@ task :populate, [:public_id] do |t, args|
       end
     end
 
-    rcl = RegistryClient.new
+    rcl = RegistryClient.new(m.url)
     changes.each do |rule|
       rcl.update_rule(rule.name, rule.version, m.public_id) do |public_id|
         puts "#   public_id=#{public_id}"
